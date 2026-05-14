@@ -60,24 +60,26 @@ class MusicBot(discord.Client):
 
         if self.state == "WAITING_MOOD":
             self.session_data["mood"] = text
-            self.state = "WAITING_COUNT"
-            await message.channel.send("何曲ききたい？（数字で教えてね。おまかせなら「デフォルト」と送ってね）")
-            return
-
-        elif self.state == "WAITING_COUNT":
-            # 数字のみ取り出すか、エラーになればデフォルト10曲
-            import re
-            nums = re.findall(r'\d+', text)
-            count = int(nums[0]) if nums else 10
-            self.session_data["count"] = count
             self.state = "WAITING_PLAYLIST"
             await message.channel.send("気になるプレイリストは？（リスト名で教えてね。おまかせなら「デフォルト」と送ってね）")
             return
 
         elif self.state == "WAITING_PLAYLIST":
+            self.session_data["playlist_name"] = text
+            self.state = "WAITING_COUNT"
+            await message.channel.send("何曲ききたい？（数字で教えてね。おまかせなら「デフォルト」と送ってね）")
+            return
+
+        elif self.state == "WAITING_COUNT":
             self.processing = True
             
-            playlist_name = text
+            # 数字のみ取り出すか、エラーになればデフォルト10曲
+            import re
+            nums = re.findall(r'\d+', text)
+            count = int(nums[0]) if nums else 10
+            self.session_data["count"] = count
+            
+            playlist_name = self.session_data["playlist_name"]
             source_playlist_id = self.default_spotify_playlist_id
             
             if playlist_name not in ["デフォルト", "おまかせ"]:
