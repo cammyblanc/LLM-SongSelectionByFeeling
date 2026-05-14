@@ -59,8 +59,9 @@ class SpotifyHandler:
         tracks = results.get('items', [])
         print(f"Retrieved {len(tracks)} items from playlist.", flush=True)
         artists = set()
-        for item in tracks:
-            track = item.get('track')
+        for pl_item in tracks:
+            # Spotify APIの仕様変更により、'track' ではなく 'item' というキー名で返ってくる場合がある
+            track = pl_item.get('track') or pl_item.get('item')
             if track:
                 for artist in track.get('artists', []):
                     artists.add(artist['name'])
