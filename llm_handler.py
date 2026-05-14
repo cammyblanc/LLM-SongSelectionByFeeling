@@ -15,7 +15,7 @@ class LLMHandler:
 
     def get_recommendations(self, artists, mood, count=10):
         """アーティストリストと気分に基づいて指定された曲数を推薦する"""
-        prompt = f"以下のアーティストを参考に、今の気分「{mood}」にぴったりの曲を{count}曲選んでください。\n\n"
+        prompt = f"以下のアーティストを参考に、今の気分が「{mood}」な人が聴きたくなりそうな曲を{count}曲選んでください。\n\n"
         prompt += "【参考アーティスト】\n" + ", ".join(artists) + "\n\n"
         prompt += "【制約】\n・出力は必ず「Artist - Song Title」の形式のみにしてください。\n・説明文や挨拶は一切含めないでください。"
         try:
@@ -28,6 +28,11 @@ class LLMHandler:
                 temperature=0.7
             )
             content = response.choices[0].message.content.strip()
+            
+            # Thinking Model (DeepSeek R1など) が出力する <think>...</think> ブロックを除去する
+            import re
+            content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+            
             # 行ごとに分割してリスト化
             recs = [line.strip() for line in content.split('\n') if line.strip()]
             return recs[:count]

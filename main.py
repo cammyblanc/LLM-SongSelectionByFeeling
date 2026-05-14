@@ -93,7 +93,7 @@ class MusicBot(discord.Client):
 
             async with message.channel.typing():
                 try:
-                    await message.channel.send(f"「{mood}」ですね！おすすめのリストを作成します。少々お待ちください... 🎵")
+                    await message.channel.send(f"「{playlist_name}」から「{mood}」の曲を {count} 曲ですね！おすすめのリストを作成します。少々お待ちください... 🎵")
                     
                     # 1. Spotify からアーティストを取得
                     artists = await asyncio.to_thread(self.spotify.get_artists_from_playlist, source_playlist_id)
