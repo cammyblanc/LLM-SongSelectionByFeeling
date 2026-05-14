@@ -2,6 +2,8 @@ import discord
 import json
 import os
 import asyncio
+import subprocess
+import time
 from dotenv import load_dotenv
 from spotify_handler import SpotifyHandler
 from llm_handler import LLMHandler
@@ -139,8 +141,28 @@ class MusicBot(discord.Client):
                     self.processing = False
                     await message.channel.send("今はどんな気分？")
 
+def start_lm_studio_server():
+    """LM StudioのCLI (lms) を使ってサーバーを起動する"""
+    print("Checking LM Studio server...", flush=True)
+    try:
+        # すでに起動しているか確認 (1234ポート)
+        # ※OSによってコマンドが異なる場合がありますが、まずは起動を試みます
+        # LM StudioのCLIツール 'lms' がインストールされている前提です
+        subprocess.Popen(["lms", "server", "start"], 
+                         stdout=subprocess.DEVNULL, 
+                         stderr=subprocess.DEVNULL)
+        
+        print("Waiting for LM Studio server to initialize...", flush=True)
+        # サーバーが完全に立ち上がるまで少し待機（必要に応じて調整）
+        time.sleep(5) 
+    except FileNotFoundError:
+        print("⚠️ 'lms' command not found. Please ensure LM Studio CLI is installed.")
+        print("Attempting to continue assuming server is already running manually...")
+
 def main():
     print("Program started...")
+    start_lm_studio_server()
+    
     token = os.getenv("DISCORD_BOT_TOKEN")
     if not token:
         print("Error: DISCORD_BOT_TOKEN not found in .env")
