@@ -15,9 +15,13 @@ class MusicBot(discord.Client):
             self.config = json.load(f)
         
         self.target_channel_id = int(self.config.get("discord_bot_channel_id"))
-        self.spotify_playlist_id = "1quEUu5Omrs3S08tuPA4Pa" # アーティスト取得用ソース
+        self.default_spotify_playlist_id = "1quEUu5Omrs3S08tuPA4Pa" # アーティスト取得用ソースのデフォルト
         self.target_playlist_id = self.config.get("spotify_target_playlist_id", "") # 更新先プレイリスト
         self.processing = False
+        
+        # 対話状態管理
+        self.state = "WAITING_MOOD"
+        self.session_data = {}
 
         print("Initializing Handlers...", flush=True)
         self.spotify = SpotifyHandler()
@@ -50,50 +54,83 @@ class MusicBot(discord.Client):
         if self.processing:
             return
 
-        mood = message.content.strip()
-        if not mood:
+        text = message.content.strip()
+        if not text:
             return
 
-        self.processing = True
-        async with message.channel.typing():
-            try:
-                await message.channel.send(f"「{mood}」ですね！おすすめのリストを作成します。少々お待ちください... 🎵")
-                
-                # 1. Spotify からアーティストを取得 (スレッドで実行してフリーズ防止)
-                artists = await asyncio.to_thread(self.spotify.get_artists_from_playlist, self.spotify_playlist_id)
-                
-                # 2. LM Studio で推薦を取得
-                recs = await asyncio.to_thread(self.llm.get_recommendations, artists, mood)
-                
-                if not recs:
-                    await message.channel.send("申し訳ありません。おすすめの曲を見つけることができませんでした。")
-                    self.processing = False
-                    return
+        if self.state == "WAITING_MOOD":
+            self.session_data["mood"] = text
+            self.state = "WAITING_COUNT"
+            await message.channel.send("何曲ききたい？（数字で教えてね。おまかせなら「デフォルト」と送ってね）")
+            return
 
-                # 3. Spotify で曲を検索
-                track_ids = await asyncio.to_thread(self.spotify.search_tracks, recs)
-                
-                if not track_ids:
-                    await message.channel.send("Spotify で該当する曲が見つかりませんでした。")
-                    self.processing = False
-                    return
+        elif self.state == "WAITING_COUNT":
+            # 数字のみ取り出すか、エラーになればデフォルト10曲
+            import re
+            nums = re.findall(r'\d+', text)
+            count = int(nums[0]) if nums else 10
+            self.session_data["count"] = count
+            self.state = "WAITING_PLAYLIST"
+            await message.channel.send("気になるプレイリストは？（リスト名で教えてね。おまかせなら「デフォルト」と送ってね）")
+            return
 
-                # 4. Spotify プレイリスト更新
-                if not self.target_playlist_id:
-                    await message.channel.send("⚠️ `config.json` に `spotify_target_playlist_id` が設定されていません。\nSpotifyで空のプレイリストを作成し、そのIDを設定してください。")
-                    self.processing = False
-                    return
+        elif self.state == "WAITING_PLAYLIST":
+            self.processing = True
+            
+            playlist_name = text
+            source_playlist_id = self.default_spotify_playlist_id
+            
+            if playlist_name not in ["デフォルト", "おまかせ"]:
+                await message.channel.send(f"プレイリスト「{playlist_name}」を探しています...")
+                found_id = await asyncio.to_thread(self.spotify.search_playlist_by_name, playlist_name)
+                if found_id:
+                    source_playlist_id = found_id
+                else:
+                    await message.channel.send(f"見つからなかったので、いつものリストを使いますね！")
+
+            mood = self.session_data["mood"]
+            count = self.session_data["count"]
+
+            async with message.channel.typing():
+                try:
+                    await message.channel.send(f"「{mood}」ですね！おすすめのリストを作成します。少々お待ちください... 🎵")
                     
-                playlist_url = await asyncio.to_thread(self.spotify.update_playlist, self.target_playlist_id, track_ids, mood)
-                
-                # 5. Discord に報告
-                await message.channel.send(f"hermesのおすすめリスト♪\n{playlist_url}")
-                
-            except Exception as e:
-                print(f"Error in processing: {e}")
-                await message.channel.send(f"エラーが発生しました: {e}")
-            finally:
-                self.processing = False
+                    # 1. Spotify からアーティストを取得
+                    artists = await asyncio.to_thread(self.spotify.get_artists_from_playlist, source_playlist_id)
+                    
+                    # 2. LM Studio で推薦を取得
+                    recs = await asyncio.to_thread(self.llm.get_recommendations, artists, mood, count)
+                    
+                    if not recs:
+                        await message.channel.send("申し訳ありません。おすすめの曲を見つけることができませんでした。")
+                        return
+    
+                    # 3. Spotify で曲を検索
+                    track_ids = await asyncio.to_thread(self.spotify.search_tracks, recs)
+                    
+                    if not track_ids:
+                        await message.channel.send("Spotify で該当する曲が見つかりませんでした。")
+                        return
+    
+                    # 4. Spotify プレイリスト更新
+                    if not self.target_playlist_id:
+                        await message.channel.send("⚠️ `config.json` に `spotify_target_playlist_id` が設定されていません。\nSpotifyで空のプレイリストを作成し、そのIDを設定してください。")
+                        return
+                        
+                    playlist_url = await asyncio.to_thread(self.spotify.update_playlist, self.target_playlist_id, track_ids, mood)
+                    
+                    # 5. Discord に報告
+                    await message.channel.send(f"hermesのおすすめリスト♪\n{playlist_url}")
+                    
+                except Exception as e:
+                    print(f"Error in processing: {e}")
+                    await message.channel.send(f"エラーが発生しました: {e}")
+                finally:
+                    # 状態リセット
+                    self.state = "WAITING_MOOD"
+                    self.session_data = {}
+                    self.processing = False
+                    await message.channel.send("今はどんな気分？")
 
 def main():
     print("Program started...")

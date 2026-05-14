@@ -33,6 +33,26 @@ class SpotifyHandler:
         except Exception as e:
             print(f"Spotify authentication failed: {e}\nPlease check your browser and complete the login. If it fails, delete the .cache file and restart.", flush=True)
 
+    def search_playlist_by_name(self, name):
+        """ユーザー自身のプレイリストの中から名前で検索し、一致するIDを返す"""
+        try:
+            print(f"Searching user's own playlists for: {name}", flush=True)
+            playlists = self.sp.current_user_playlists(limit=50)
+            while playlists:
+                for playlist in playlists['items']:
+                    if playlist and name.lower() in playlist['name'].lower():
+                        print(f"Found playlist: {playlist['name']} (ID: {playlist['id']})", flush=True)
+                        return playlist['id']
+                if playlists['next']:
+                    playlists = self.sp.next(playlists)
+                else:
+                    break
+            print("Playlist not found in user's library.", flush=True)
+            return None
+        except Exception as e:
+            print(f"Error searching for playlist: {e}", flush=True)
+            return None
+
     def get_artists_from_playlist(self, playlist_id):
         """指定されたプレイリストからアーティスト名のリストを取得する"""
         results = self.sp.playlist_tracks(playlist_id)
