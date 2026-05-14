@@ -101,7 +101,7 @@ class MusicBot(discord.Client):
                     artists = await asyncio.to_thread(self.spotify.get_artists_from_playlist, source_playlist_id)
                     
                     # 2. LM Studio で推薦を取得
-                    recs = await asyncio.to_thread(self.llm.get_recommendations, artists, mood, count)
+                    recs, casual_reasoning = await asyncio.to_thread(self.llm.get_recommendations, artists, mood, count)
                     
                     if not recs:
                         await message.channel.send("申し訳ありません。おすすめの曲を見つけることができませんでした。")
@@ -122,7 +122,12 @@ class MusicBot(discord.Client):
                     playlist_url = await asyncio.to_thread(self.spotify.update_playlist, self.target_playlist_id, track_ids, mood)
                     
                     # 5. Discord に報告
-                    await message.channel.send(f"hermesのおすすめリスト♪\n{playlist_url}")
+                    reply_msg = f"hermesのおすすめリスト♪\n"
+                    if casual_reasoning:
+                        reply_msg += f"\n{casual_reasoning}\n"
+                    reply_msg += f"\n{playlist_url}"
+                    
+                    await message.channel.send(reply_msg)
                     
                 except Exception as e:
                     print(f"Error in processing: {e}")

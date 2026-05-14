@@ -14,7 +14,7 @@ class LLMHandler:
         self.model = self.config.get("chat_model", "google/gemma-4-e4b")
 
     def get_recommendations(self, artists, mood, count=10):
-        """アーティストリストと気分に基づいて指定された曲数を推薦する"""
+        """アーティストリストと気分に基づいて指定された曲数を推薦し、カジュアルな思考プロセスの要約も返す"""
         prompt = f"以下のアーティストを参考に、今の気分が「{mood}」な人が聴きたくなりそうな曲を{count}曲選んでください。\n\n"
         prompt += "【参考アーティスト】\n" + ", ".join(artists) + "\n\n"
         prompt += "【制約】\n・出力は必ず「Artist - Song Title」の形式のみにしてください。\n・説明文や挨拶は一切含めないでください。"
@@ -27,18 +27,45 @@ class LLMHandler:
                 ],
                 temperature=0.7
             )
-            content = response.choices[0].message.content.strip()
             
-            # Thinking Model (DeepSeek R1など) が出力する <think>...</think> ブロックを除去する
+            message = response.choices[0].message
+            content = message.content.strip()
+            
+            # 1. reasoning_contentの抽出 (LM Studioの仕様に依存するため複数パターン対応)
+            reasoning = getattr(message, 'reasoning_content', '')
+            if not reasoning and hasattr(message, 'model_extra') and message.model_extra:
+                reasoning = message.model_extra.get('reasoning_content', '')
+            
+            # 2. <think>タグが含まれている場合の抽出と除去
             import re
+            if not reasoning:
+                think_match = re.search(r'<think>(.*?)</think>', content, flags=re.DOTALL)
+                if think_match:
+                    reasoning = think_match.group(1).strip()
+                    
             content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL).strip()
+            
+            # 3. 思考プロセスのカジュアル要約 (2回目のLLM呼び出し)
+            casual_reasoning = ""
+            if reasoning:
+                summary_prompt = f"以下のAIの思考プロセスを要約し、Discordのユーザーに向けてカジュアルで親しみやすい言葉に変換してください。\n例：「〜と考えて選びました！」「〜な曲を集めてみました！」など。\n\n思考プロセス:\n{reasoning}\n\n【制約】\n・2〜3文程度で短くまとめる\n・親しみやすいトーンにする\n・AIが話しているようなメタ発言（「ユーザーは〜を求めている」等）は避ける\n・<think>タグは含めない"
+                try:
+                    res_summary = self.client.chat.completions.create(
+                        model=self.model,
+                        messages=[{"role": "user", "content": summary_prompt}],
+                        temperature=0.7
+                    )
+                    casual_reasoning = res_summary.choices[0].message.content.strip()
+                    casual_reasoning = re.sub(r'<think>.*?</think>', '', casual_reasoning, flags=re.DOTALL).strip()
+                except Exception as e:
+                    print(f"Error summarizing reasoning: {e}")
             
             # 行ごとに分割してリスト化
             recs = [line.strip() for line in content.split('\n') if line.strip()]
-            return recs[:count]
+            return recs[:count], casual_reasoning
         except Exception as e:
             print(f"Error calling LM Studio: {e}")
-            return []
+            return [], ""
 
 if __name__ == "__main__":
     # Test
