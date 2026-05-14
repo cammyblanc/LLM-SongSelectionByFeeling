@@ -1,0 +1,25 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Environment variables
+.env
+
+# Spotify API cache
+.cache
+.cache.*
+
+# Test scripts
+test_manual.py
+test_spotify.py
+test_discord.py
+
+# Scratch
+scratch/

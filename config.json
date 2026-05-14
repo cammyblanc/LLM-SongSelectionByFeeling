@@ -1,0 +1,8 @@
+{
+    "discord_webhook_url": "",
+    "discord_bot_token": "",
+    "discord_bot_channel_id": "1494336602477035682",
+    "llm_host": "http://localhost:1234/v1",
+    "chat_model": "google/gemma-4-e4b",
+    "spotify_target_playlist_id": "https://open.spotify.com/playlist/6M1yCcjYs0INTVbuHag6p5?si=A375O6fGSz6if9EAzAACbg"
+}
