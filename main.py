@@ -67,7 +67,7 @@ class MusicBot(discord.Client):
         elif self.state == "WAITING_PLAYLIST":
             self.session_data["playlist_name"] = text
             self.state = "WAITING_COUNT"
-            await message.channel.send("何曲ききたい？おまかせなら「デフォルト」で～")
+            await message.channel.send("何曲ききたい？おまかせなら「デフォルト」ね")
             return
 
         elif self.state == "WAITING_COUNT":
@@ -95,7 +95,7 @@ class MusicBot(discord.Client):
 
             async with message.channel.typing():
                 try:
-                    await message.channel.send(f"「{playlist_name}」から「{mood}」の曲を {count} 曲ですね！おすすめのリストを作成します。少々お待ちください... 🎵")
+                    await message.channel.send(f"「{playlist_name}」から「{mood}」の曲を {count} 曲ね。おすすめのリスト作るので少々お待ちを... 🎵")
                     
                     # 1. Spotify からアーティストと曲名を取得
                     references = await asyncio.to_thread(self.spotify.get_reference_tracks_from_playlist, source_playlist_id)
