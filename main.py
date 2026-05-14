@@ -61,13 +61,13 @@ class MusicBot(discord.Client):
         if self.state == "WAITING_MOOD":
             self.session_data["mood"] = text
             self.state = "WAITING_PLAYLIST"
-            await message.channel.send("気になるプレイリストは？（リスト名で教えてね。おまかせなら「デフォルト」と送ってね）")
+            await message.channel.send("気になるプレイリストは？おまかせなら「デフォルト」でおけ")
             return
 
         elif self.state == "WAITING_PLAYLIST":
             self.session_data["playlist_name"] = text
             self.state = "WAITING_COUNT"
-            await message.channel.send("何曲ききたい？（数字で教えてね。おまかせなら「デフォルト」と送ってね）")
+            await message.channel.send("何曲ききたい？おまかせなら「デフォルト」で～")
             return
 
         elif self.state == "WAITING_COUNT":
@@ -104,14 +104,14 @@ class MusicBot(discord.Client):
                     recs, casual_reasoning = await asyncio.to_thread(self.llm.get_recommendations, references, mood, count)
                     
                     if not recs:
-                        await message.channel.send("申し訳ありません。おすすめの曲を見つけることができませんでした。")
+                        await message.channel.send("おすすめの曲が見つけられんかった。。。")
                         return
     
                     # 3. Spotify で曲を検索
                     track_ids = await asyncio.to_thread(self.spotify.search_tracks, recs)
                     
                     if not track_ids:
-                        await message.channel.send("Spotify で該当する曲が見つかりませんでした。")
+                        await message.channel.send("Spotify にはないー (>o<)")
                         return
     
                     # 4. Spotify プレイリスト更新
