@@ -53,19 +53,20 @@ class SpotifyHandler:
             print(f"Error searching for playlist: {e}", flush=True)
             return None
 
-    def get_artists_from_playlist(self, playlist_id):
-        """指定されたプレイリストからアーティスト名のリストを取得する"""
+    def get_reference_tracks_from_playlist(self, playlist_id):
+        """指定されたプレイリストから「アーティスト名 - 曲名」のリストを取得する"""
         results = self.sp.playlist_tracks(playlist_id)
         tracks = results.get('items', [])
         print(f"Retrieved {len(tracks)} items from playlist.", flush=True)
-        artists = set()
+        references = set()
         for pl_item in tracks:
             # Spotify APIの仕様変更により、'track' ではなく 'item' というキー名で返ってくる場合がある
             track = pl_item.get('track') or pl_item.get('item')
-            if track:
-                for artist in track.get('artists', []):
-                    artists.add(artist['name'])
-        return list(artists)
+            if track and track.get('name'):
+                artist_names = ", ".join([artist['name'] for artist in track.get('artists', [])])
+                track_name = track['name']
+                references.add(f"{artist_names} - {track_name}")
+        return list(references)
 
     def search_tracks(self, recommendations):
         """推薦された 'Artist - Song' リストから Spotify のトラック ID を検索する"""

@@ -97,11 +97,11 @@ class MusicBot(discord.Client):
                 try:
                     await message.channel.send(f"「{playlist_name}」から「{mood}」の曲を {count} 曲ですね！おすすめのリストを作成します。少々お待ちください... 🎵")
                     
-                    # 1. Spotify からアーティストを取得
-                    artists = await asyncio.to_thread(self.spotify.get_artists_from_playlist, source_playlist_id)
+                    # 1. Spotify からアーティストと曲名を取得
+                    references = await asyncio.to_thread(self.spotify.get_reference_tracks_from_playlist, source_playlist_id)
                     
                     # 2. LM Studio で推薦を取得
-                    recs, casual_reasoning = await asyncio.to_thread(self.llm.get_recommendations, artists, mood, count)
+                    recs, casual_reasoning = await asyncio.to_thread(self.llm.get_recommendations, references, mood, count)
                     
                     if not recs:
                         await message.channel.send("申し訳ありません。おすすめの曲を見つけることができませんでした。")

@@ -13,10 +13,13 @@ class LLMHandler:
         )
         self.model = self.config.get("chat_model", "google/gemma-4-e4b")
 
-    def get_recommendations(self, artists, mood, count=10):
-        """アーティストリストと気分に基づいて指定された曲数を推薦し、カジュアルな思考プロセスの要約も返す"""
-        prompt = f"以下のアーティストを参考に、今の気分が「{mood}」な人が聴きたくなりそうな曲を{count}曲選んでください。\n\n"
-        prompt += "【参考アーティスト】\n" + ", ".join(artists) + "\n\n"
+    def get_recommendations(self, references, mood, count=10):
+        """参考曲リストと気分に基づいて指定された曲数を推薦し、カジュアルな思考プロセスの要約も返す"""
+        prompt = f"以下の参考曲（アーティストと曲名）の雰囲気をベースにして、今の気分が「{mood}」な人が聴きたくなりそうな曲を{count}曲選んでください。\n\n"
+        prompt += "【選曲の条件】\n"
+        prompt += "・参考曲がリリースされた年代の楽曲から、ごく最近の最新曲まで、幅広い年代の楽曲をバランスよく混ぜて選曲してください。\n"
+        prompt += "・ジャンルやテイストは参考曲の雰囲気に合わせつつ、年代の幅をもたせることが重要です。\n\n"
+        prompt += "【参考曲】\n" + "\n".join(references) + "\n\n"
         prompt += "【制約】\n・出力は必ず「Artist - Song Title」の形式のみにしてください。\n・説明文や挨拶は一切含めないでください。"
         try:
             response = self.client.chat.completions.create(
@@ -48,7 +51,7 @@ class LLMHandler:
             # 3. 思考プロセスのカジュアル要約 (2回目のLLM呼び出し)
             casual_reasoning = ""
             if reasoning:
-                summary_prompt = f"以下のAIの思考プロセスを要約し、Discordのユーザーに向けてカジュアルで親しみやすい言葉に変換してください。\n例：「〜と考えて選びました！」「〜な曲を集めてみました！」など。\n\n思考プロセス:\n{reasoning}\n\n【制約】\n・2〜3文程度で短くまとめる\n・親しみやすいトーンにする\n・AIが話しているようなメタ発言（「ユーザーは〜を求めている」等）は避ける\n・<think>タグは含めない"
+                summary_prompt = f"以下のAIの思考プロセスを要約し、Discordのユーザーに向けてカジュアルで親しみやすい言葉に変換してください。\n例：「〜と考えて選びました！」「〜な曲を集めてみました！」など。\n\n思考プロセス:\n{reasoning}\n\n【制約】\n・100字~150字程度で短くまとめる\n・カジュアルなトーンにする\n・AIが話しているようなメタ発言（「ユーザーは〜を求めている」等）は避ける\n・<think>タグは含めない"
                 try:
                     res_summary = self.client.chat.completions.create(
                         model=self.model,
